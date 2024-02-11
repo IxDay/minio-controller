@@ -59,3 +59,7 @@ func (c *Client) NewBucket(ctx context.Context, name string) error {
 func (c *Client) BucketExists(ctx context.Context, name string) (bool, error) {
 	return c.c.BucketExists(ctx, name)
 }
+
+func (c *Client) BucketDelete(ctx context.Context, name string) error {
+	return c.c.RemoveBucket(ctx, name)
+}

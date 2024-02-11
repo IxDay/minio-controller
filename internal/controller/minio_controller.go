@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	bucketv1alpha1 "github.com/IxDay/api/v1alpha1"
@@ -37,6 +38,8 @@ import (
 const (
 	// typeAvailableBucket represents the status of the Bucket reconciliation
 	typeAvailableBucket = "Available"
+	// name of our custom finalizer
+	finalizerName = "bucket.ixday.github.io/finalizer"
 )
 
 // MinioReconciler reconciles a Minio object
@@ -67,12 +70,45 @@ func (r *MinioReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		if apierrors.IsNotFound(err) {
 			// If the custom resource is not found then it usually means that it was deleted or not created
 			// In this way, we will stop the reconciliation
-			log.Info("minio resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
 		log.Error(err, "Failed to get minio")
 		return ctrl.Result{}, err
+	}
+
+	// https://book.kubebuilder.io/reference/using-finalizers
+	// examine DeletionTimestamp to determine if object is under deletion
+	if bucket.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// to registering our finalizer.
+		if !controllerutil.ContainsFinalizer(bucket, finalizerName) {
+			controllerutil.AddFinalizer(bucket, finalizerName)
+			if err := r.Update(ctx, bucket); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(bucket, finalizerName) {
+			// our finalizer is present, so lets handle any external dependency
+			log.Info("Deleting Bucket", "Bucket.Name", bucket.Name)
+			if err := r.MinioClient.BucketDelete(ctx, bucket.Name); err != nil {
+				// if fail to delete the external dependency here, return with error
+				// so that it can be retried.
+				return ctrl.Result{}, err
+			}
+
+			// remove our finalizer from the list and update it.
+			controllerutil.RemoveFinalizer(bucket, finalizerName)
+			if err := r.Update(ctx, bucket); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		// Stop reconciliation as the item is being deleted
+		return ctrl.Result{}, nil
 	}
 
 	// Let's just set the status as Unknown when no status is available
