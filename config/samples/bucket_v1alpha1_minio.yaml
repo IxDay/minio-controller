@@ -1,0 +1,9 @@
+apiVersion: bucket.ixday.github.io/v1alpha1
+kind: Minio
+metadata:
+  labels:
+    app.kubernetes.io/name: bucket-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: minio-sample
+spec:
+  # TODO(user): Add fields here
