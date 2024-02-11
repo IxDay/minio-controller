@@ -17,13 +17,17 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
+	"io/fs"
 	"os"
 	"path/filepath"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,7 +42,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	bucketv1alpha1 "github.com/IxDay/api/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/IxDay/internal/controller"
+	"github.com/IxDay/internal/minio"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -64,6 +71,7 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
+	var connectionSecret string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -81,6 +89,7 @@ func main() {
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.StringVar(&connectionSecret, "connection-secret", "minio", "name of a secret containing connections strings to a minio cluster")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -202,9 +211,37 @@ func main() {
 		os.Exit(1)
 	}
 
+	// https://stackoverflow.com/questions/53983713/unable-to-get-k8s-resources-in-kubebuilders-client-client-for-unit-test
+	generatedClient := kubernetes.NewForConfigOrDie(mgr.GetConfig())
+	// https://stackoverflow.com/questions/53283347/how-to-get-current-namespace-of-an-in-cluster-go-kubernetes-client
+	namespace := os.Getenv("POD_NAMESPACE")
+	if namespace == "" {
+		b, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+		if !errors.Is(err, fs.ErrNotExist) {
+			setupLog.Error(err, "failed to read namespace file")
+			os.Exit(1)
+		}
+		if b == nil {
+			setupLog.Error(errors.New("no file, no env var"), "failed to retrieve current namespace")
+			os.Exit(1)
+		}
+		namespace = string(b)
+	}
+	secret, err := generatedClient.CoreV1().Secrets(namespace).
+		Get(context.Background(), connectionSecret, metav1.GetOptions{})
+	if err != nil {
+		setupLog.Error(err, "failed to retrieve connection strings secret")
+	}
+
+	client, err := minio.NewClientFromSecret(secret)
+	if err != nil {
+		setupLog.Error(err, "failed to instanciate minio client from secret")
+	}
+
 	if err = (&controller.MinioReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		MinioClient: client,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Minio")
 		os.Exit(1)
