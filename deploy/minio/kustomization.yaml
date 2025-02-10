@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: minio
+labels:
+- includeSelectors: true
+  pairs:
+    app: minio
+
+
+helmCharts:
+- name: minio
+  namespace: minio
+  releaseName: minio
+  repo: https://charts.min.io/
+  version: 5.4.0
+  valuesInline:
+    mode: standalone
+    consoleService:
+      port: "9001"
+    image:
+      repository: quay.io/minio/minio
+      tag: RELEASE.2025-02-03T21-03-04Z
+    persistence:
+      size: 1Gi
+    replicas: 1
+    resources:
+      requests:
+        memory: 1Gi
+    serviceAccount:
+      name: minio

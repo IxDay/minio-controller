@@ -83,3 +83,8 @@ run = "{{vars.container_tool}} build -t {{vars.image}} ."
 [tasks."docker:push"]
 run = "{{vars.container_tool}} push {{vars.image}}"
 
+[tasks."minio:deploy"]
+run = "kustomize build --enable-helm deploy/minio/ | k apply -f-"
+
+[tasks."minio:teardown"]
+run = "kustomize build --enable-helm deploy/minio/ | k delete -f-"
