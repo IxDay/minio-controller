@@ -28,7 +28,7 @@ alias = "b"
 sources = ["**/*.go"]
 depends = ["manifests", "generate", "fmt", "vet"]
 
-[tasks.run]
+[tasks.start]
 env = { POD_NAMESPACE = "minio-controller" }
 run = "go run ./cmd/main.go"
 depends = ["manifests", "generate", "fmt", "vet"]
