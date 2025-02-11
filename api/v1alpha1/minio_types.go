@@ -23,6 +23,8 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+const Separator = "."
+
 // MinioSpec defines the desired state of Minio.
 type MinioSpec struct {
 }
@@ -42,6 +44,10 @@ type Minio struct {
 
 	Spec   MinioSpec   `json:"spec,omitempty"`
 	Status MinioStatus `json:"status,omitempty"`
+}
+
+func (m Minio) BucketName() string {
+	return m.Namespace + Separator + m.Name
 }
 
 // +kubebuilder:object:root=true

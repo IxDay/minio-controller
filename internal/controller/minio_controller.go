@@ -93,8 +93,8 @@ func (r *MinioReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		// The object is being deleted
 		if controllerutil.ContainsFinalizer(bucket, finalizerName) {
 			// our finalizer is present, so lets handle any external dependency
-			log.Info("Deleting Bucket", "Bucket.Name", bucket.Name)
-			if err := r.MinioClient.BucketDelete(ctx, bucket.Name); err != nil {
+			log.Info("Deleting Bucket", "Bucket.Name", bucket.BucketName())
+			if err := r.MinioClient.BucketDelete(ctx, bucket.BucketName()); err != nil {
 				// if fail to delete the external dependency here, return with error
 				// so that it can be retried.
 				return ctrl.Result{}, err
@@ -113,7 +113,11 @@ func (r *MinioReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	// Let's just set the status as Unknown when no status is available
 	if bucket.Status.Conditions == nil || len(bucket.Status.Conditions) == 0 {
-		meta.SetStatusCondition(&bucket.Status.Conditions, metav1.Condition{Type: typeAvailableBucket, Status: metav1.ConditionUnknown, Reason: "Reconciling", Message: "Starting reconciliation"})
+		condition := metav1.Condition{
+			Type: typeAvailableBucket, Status: metav1.ConditionUnknown,
+			Reason: "Reconciling", Message: "Starting reconciliation",
+		}
+		meta.SetStatusCondition(&bucket.Status.Conditions, condition)
 		if err := r.Status().Update(ctx, bucket); err != nil {
 			log.Error(err, "Failed to update bucket status")
 			return ctrl.Result{}, err
@@ -130,15 +134,15 @@ func (r *MinioReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	}
 
-	found, err := r.MinioClient.BucketExists(ctx, req.Name)
+	found, err := r.MinioClient.BucketExists(ctx, bucket.BucketName())
 	if err != nil {
 		log.Error(err, "Failed to get bucket")
 	} else if !found {
-		log.Info("Creating a new Bucket", "Bucket.Name", req.Name)
+		log.Info("Creating a new Bucket", "Bucket.Name", bucket.BucketName())
 
-		if err := r.MinioClient.NewBucket(ctx, req.Name); err != nil {
+		if err := r.MinioClient.NewBucket(ctx, bucket.BucketName()); err != nil {
 			log.Error(err, "Failed to create new Bucket",
-				"Bucket.Name", req.Name)
+				"Bucket.Name", bucket.BucketName())
 			return ctrl.Result{}, err
 		}
 		// Bucket created successfully
