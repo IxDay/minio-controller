@@ -27,6 +27,7 @@ const Separator = "."
 
 // MinioSpec defines the desired state of Minio.
 type MinioSpec struct {
+	SecretName string `json:"secretName"`
 }
 
 // MinioStatus defines the observed state of Minio.

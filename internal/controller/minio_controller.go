@@ -21,12 +21,14 @@ import (
 	"fmt"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -93,10 +95,17 @@ func (r *MinioReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		// The object is being deleted
 		if controllerutil.ContainsFinalizer(bucket, finalizerName) {
 			// our finalizer is present, so lets handle any external dependency
+			log.Info("Deleting associated users and policies", "Bucket.Name", bucket.BucketName())
+			if err := r.MinioClient.UserDelete(ctx, bucket.BucketName()); err != nil {
+				log.Error(err, "Failed deleting associated users and policies", "Bucket.Name", bucket.BucketName())
+				return ctrl.Result{}, err
+			}
+
 			log.Info("Deleting Bucket", "Bucket.Name", bucket.BucketName())
 			if err := r.MinioClient.BucketDelete(ctx, bucket.BucketName()); err != nil {
 				// if fail to delete the external dependency here, return with error
 				// so that it can be retried.
+				log.Error(err, "Failed deleting bucket", "Bucket.Name", bucket.BucketName())
 				return ctrl.Result{}, err
 			}
 
@@ -140,7 +149,7 @@ func (r *MinioReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	} else if !found {
 		log.Info("Creating a new Bucket", "Bucket.Name", bucket.BucketName())
 
-		if err := r.MinioClient.NewBucket(ctx, bucket.BucketName()); err != nil {
+		if err := r.MinioClient.BucketCreate(ctx, bucket.BucketName()); err != nil {
 			log.Error(err, "Failed to create new Bucket",
 				"Bucket.Name", bucket.BucketName())
 			return ctrl.Result{}, err
@@ -149,6 +158,51 @@ func (r *MinioReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		// We will requeue the reconciliation so that we can ensure the state
 		// and move forward for the next operations
 		return ctrl.Result{RequeueAfter: time.Minute}, nil
+	}
+
+	secret := &corev1.Secret{ObjectMeta: bucket.ObjectMeta}
+	if bucket.Spec.SecretName != "" {
+		secret.Name = bucket.Spec.SecretName
+	}
+	err = r.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, secret)
+	if apierrors.IsNotFound(err) {
+		sec, err := r.secretForMinio(bucket)
+		if err != nil {
+			log.Error(err, "Failed to define new Secret resource for Bucket")
+
+			// The following implementation will update the status
+			meta.SetStatusCondition(&bucket.Status.Conditions, metav1.Condition{Type: typeAvailableBucket,
+				Status: metav1.ConditionFalse, Reason: "Reconciling",
+				Message: fmt.Sprintf("Failed to create Secret for the custom resource (%s): (%s)", bucket.Name, err)})
+
+			if err := r.Status().Update(ctx, bucket); err != nil {
+				log.Error(err, "Failed to update Bucket status")
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, err
+		}
+		user, password := string(sec.Data["user"]), string(sec.Data["password"])
+		if err := r.MinioClient.UserCreate(ctx, user, password, bucket.BucketName()); err != nil {
+			log.Error(err, "Failed to create Minio user, policy and attach")
+			return ctrl.Result{}, err
+		}
+
+		log.Info("Creating a new Secret",
+			"Secret.Namespace", sec.Namespace, "Secret.Name", sec.Name)
+		if err = r.Create(ctx, sec); err != nil {
+			log.Error(err, "Failed to create new Secret",
+				"Secret.Namespace", sec.Namespace, "Secret.Name", sec.Name)
+			return ctrl.Result{}, err
+		}
+		// Secret created successfully
+		// We will requeue the reconciliation so that we can ensure the state
+		// and move forward for the next operations
+		return ctrl.Result{RequeueAfter: time.Minute}, nil
+	} else if err != nil {
+		log.Error(err, "Failed to get Secret")
+		// Let's return the error for the reconciliation be re-trigged again
+		return ctrl.Result{}, err
 	}
 	// The following implementation will update the status
 	meta.SetStatusCondition(&bucket.Status.Conditions, metav1.Condition{Type: typeAvailableBucket,
@@ -169,4 +223,35 @@ func (r *MinioReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&bucketv1alpha1.Minio{}).
 		Named("minio").
 		Complete(r)
+}
+
+func (r *MinioReconciler) secretForMinio(bucket *bucketv1alpha1.Minio) (*corev1.Secret, error) {
+	user, err := minio.GenerateAccessKey(0, nil)
+	if err != nil {
+		return nil, err
+	}
+	password, err := minio.GenerateSecretKey(0, nil)
+	if err != nil {
+		return nil, err
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      bucket.Name,
+			Namespace: bucket.Namespace,
+		},
+		Data: map[string][]byte{
+			"user":     user,
+			"password": password,
+		},
+	}
+	if bucket.Spec.SecretName != "" {
+		secret.Name = bucket.Spec.SecretName
+	}
+
+	// Set the ownerRef for the Deployment
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/
+	if err := ctrl.SetControllerReference(bucket, secret, r.Scheme); err != nil {
+		return nil, err
+	}
+	return secret, nil
 }

@@ -41,8 +41,9 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	bucketv1alpha1 "github.com/IxDay/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	bucketv1alpha1 "github.com/IxDay/api/v1alpha1"
 
 	"github.com/IxDay/internal/controller"
 	"github.com/IxDay/internal/minio"
