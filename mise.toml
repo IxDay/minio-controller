@@ -1,6 +1,7 @@
 [env]
 KUBECONFIG = "{{config_root}}/kubeconfig"
 KIND_CLUSTER_NAME = "bucket-controller"
+MC_CONFIG_DIR = "{{config_root}}/.mc"
 
 [vars]
 container_tool = "docker"
@@ -20,6 +21,7 @@ go = "1.23"
 "go:sigs.k8s.io/controller-runtime/tools/setup-envtest" = "release-0.20"
 "go:sigs.k8s.io/controller-tools/cmd/controller-gen" = "v0.17.1"
 "aqua:helm/helm" = "3.16"
+"aqua:minio/mc" = "RELEASE.2025-02-08T19-14-21Z"
 
 [tasks.build]
 run = "go build -o bin/manager cmd/main.go"

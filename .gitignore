@@ -1,5 +1,6 @@
 # Kubernetes Generated files - skip generated files, except for vendored files
 zz_generated.*
 /config/crd/bases/*.yaml
+/.mc
 kubeconfig
 charts
