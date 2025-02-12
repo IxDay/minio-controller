@@ -44,30 +44,30 @@ const (
 	finalizerName = "bucket.ixday.github.io/finalizer"
 )
 
-// MinioReconciler reconciles a Minio object
-type MinioReconciler struct {
+// BucketReconciler reconciles a Bucket object
+type BucketReconciler struct {
 	client.Client
 	Scheme      *runtime.Scheme
 	MinioClient *minio.Client
 }
 
-// +kubebuilder:rbac:groups=bucket.ixday.github.io,resources=minios,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=bucket.ixday.github.io,resources=minios/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=bucket.ixday.github.io,resources=minios/finalizers,verbs=update
+// +kubebuilder:rbac:groups=minio.ixday.github.io,resources=buckets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=minio.ixday.github.io,resources=buckets/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=minio.ixday.github.io,resources=buckets/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the Minio object against the actual cluster state, and then
+// the Bucket object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.0/pkg/reconcile
-func (r *MinioReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	bucket := &bucketv1alpha1.Minio{}
+	bucket := &bucketv1alpha1.Bucket{}
 	if err := r.Get(ctx, req.NamespacedName, bucket); err != nil {
 		if apierrors.IsNotFound(err) {
 			// If the custom resource is not found then it usually means that it was deleted or not created
@@ -75,7 +75,7 @@ func (r *MinioReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to get minio")
+		log.Error(err, "Failed to get bucket")
 		return ctrl.Result{}, err
 	}
 
@@ -166,7 +166,7 @@ func (r *MinioReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 	err = r.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, secret)
 	if apierrors.IsNotFound(err) {
-		sec, err := r.secretForMinio(bucket)
+		sec, err := r.secretForBucket(bucket)
 		if err != nil {
 			log.Error(err, "Failed to define new Secret resource for Bucket")
 
@@ -184,7 +184,7 @@ func (r *MinioReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 		user, password := string(sec.Data["user"]), string(sec.Data["password"])
 		if err := r.MinioClient.UserCreate(ctx, user, password, bucket.BucketName()); err != nil {
-			log.Error(err, "Failed to create Minio user, policy and attach")
+			log.Error(err, "Failed to create Bucket user, policy and attach")
 			return ctrl.Result{}, err
 		}
 
@@ -218,14 +218,14 @@ func (r *MinioReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *MinioReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *BucketReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&bucketv1alpha1.Minio{}).
-		Named("minio").
+		For(&bucketv1alpha1.Bucket{}).
+		Named("bucket").
 		Complete(r)
 }
 
-func (r *MinioReconciler) secretForMinio(bucket *bucketv1alpha1.Minio) (*corev1.Secret, error) {
+func (r *BucketReconciler) secretForBucket(bucket *bucketv1alpha1.Bucket) (*corev1.Secret, error) {
 	user, err := minio.GenerateAccessKey(0, nil)
 	if err != nil {
 		return nil, err

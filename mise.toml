@@ -1,11 +1,11 @@
 [env]
 KUBECONFIG = "{{config_root}}/kubeconfig"
-KIND_CLUSTER_NAME = "bucket-controller"
+KIND_CLUSTER_NAME = "minio-controller"
 MC_CONFIG_DIR = "{{config_root}}/.mc"
 
 [vars]
 container_tool = "docker"
-image = "bucket-controller:latest"
+image = "minio-controller:latest"
 ignore_not_found = "false"
 
 [tools]

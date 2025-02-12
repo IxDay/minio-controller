@@ -1,4 +1,4 @@
 ## Append samples of your project ##
 resources:
-- bucket_v1alpha1_minio.yaml
+- minio_v1alpha1_bucket.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

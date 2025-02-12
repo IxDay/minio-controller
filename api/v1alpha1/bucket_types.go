@@ -25,41 +25,41 @@ import (
 
 const Separator = "."
 
-// MinioSpec defines the desired state of Minio.
-type MinioSpec struct {
+// BucketSpec defines the desired state of Bucket.
+type BucketSpec struct {
 	SecretName string `json:"secretName"`
 }
 
-// MinioStatus defines the observed state of Minio.
-type MinioStatus struct {
+// BucketStatus defines the observed state of Bucket.
+type BucketStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// Minio is the Schema for the minios API.
-type Minio struct {
+// Bucket is the Schema for the buckets API.
+type Bucket struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   MinioSpec   `json:"spec,omitempty"`
-	Status MinioStatus `json:"status,omitempty"`
+	Spec   BucketSpec   `json:"spec,omitempty"`
+	Status BucketStatus `json:"status,omitempty"`
 }
 
-func (m Minio) BucketName() string {
+func (m Bucket) BucketName() string {
 	return m.Namespace + Separator + m.Name
 }
 
 // +kubebuilder:object:root=true
 
-// MinioList contains a list of Minio.
-type MinioList struct {
+// BucketList contains a list of Bucket.
+type BucketList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Minio `json:"items"`
+	Items           []Bucket `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Minio{}, &MinioList{})
+	SchemeBuilder.Register(&Bucket{}, &BucketList{})
 }

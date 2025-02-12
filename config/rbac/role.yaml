@@ -5,9 +5,9 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - bucket.ixday.github.io
+  - minio.ixday.github.io
   resources:
-  - minios
+  - buckets
   verbs:
   - create
   - delete
@@ -17,15 +17,15 @@ rules:
   - update
   - watch
 - apiGroups:
-  - bucket.ixday.github.io
+  - minio.ixday.github.io
   resources:
-  - minios/finalizers
+  - buckets/finalizers
   verbs:
   - update
 - apiGroups:
-  - bucket.ixday.github.io
+  - minio.ixday.github.io
   resources:
-  - minios/status
+  - buckets/status
   verbs:
   - get
   - patch

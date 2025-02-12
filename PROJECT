@@ -5,7 +5,7 @@
 domain: ixday.github.io
 layout:
 - go.kubebuilder.io/v4
-projectName: bucket-controller
+projectName: minio-controller
 repo: github.com/IxDay
 resources:
 - api:
@@ -13,8 +13,8 @@ resources:
     namespaced: true
   controller: true
   domain: ixday.github.io
-  group: bucket
-  kind: Minio
+  group: minio
+  kind: Bucket
   path: github.com/IxDay/api/v1alpha1
   version: v1alpha1
 version: "3"

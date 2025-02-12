@@ -22,7 +22,7 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the {{ .ProjectName }} itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
-- minio_admin_role.yaml
-- minio_editor_role.yaml
-- minio_viewer_role.yaml
+- bucket_admin_role.yaml
+- bucket_editor_role.yaml
+- bucket_viewer_role.yaml
 

@@ -1,7 +1,7 @@
-# This rule is not used by the project bucket-controller itself.
+# This rule is not used by the project minio-controller itself.
 # It is provided to allow the cluster admin to help manage permissions for users.
 #
-# Grants full permissions ('*') over bucket.ixday.github.io.
+# Grants full permissions ('*') over minio.ixday.github.io.
 # This role is intended for users authorized to modify roles and bindings within the cluster,
 # enabling them to delegate specific permissions to other users or groups as needed.
 
@@ -9,19 +9,19 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
-    app.kubernetes.io/name: bucket-controller
+    app.kubernetes.io/name: minio-controller
     app.kubernetes.io/managed-by: kustomize
-  name: minio-admin-role
+  name: bucket-admin-role
 rules:
 - apiGroups:
-  - bucket.ixday.github.io
+  - minio.ixday.github.io
   resources:
-  - minios
+  - buckets
   verbs:
   - '*'
 - apiGroups:
-  - bucket.ixday.github.io
+  - minio.ixday.github.io
   resources:
-  - minios/status
+  - buckets/status
   verbs:
   - get

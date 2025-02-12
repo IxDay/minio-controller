@@ -239,7 +239,7 @@ func main() {
 		setupLog.Error(err, "failed to instanciate minio client from secret")
 	}
 
-	if err = (&controller.MinioReconciler{
+	if err = (&controller.BucketReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),
 		MinioClient: client,
