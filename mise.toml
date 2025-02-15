@@ -6,7 +6,6 @@ MC_CONFIG_DIR = "{{config_root}}/.mc"
 [vars]
 container_tool = "docker"
 image = "minio-controller:latest"
-ignore_not_found = "false"
 envtest_version = "release-0.20"
 k8s_version = "1.32"
 
@@ -50,11 +49,11 @@ run = [
 ]
 
 [tasks.teardown]
-run = 'kustomize build config/default | kubectl delete --ignore-not-found={{vars.ignore_not_found}} -f-'
+run = 'kustomize build config/default | kubectl delete --ignore-not-found={{flag(name="ignore_not_found")}} -f-'
 
 [tasks.uninstall]
 depends = ["manifests"]
-run = 'kustomize build config/crd | kubectl delete --ignore-not-found={{vars.ignore_not_found}} -f-'
+run = 'kustomize build config/crd | kubectl delete --ignore-not-found={{flag(name="ignore_not_found")}} -f-'
 
 [tasks.generate]
 run = 'controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."'
