@@ -33,7 +33,7 @@ sources = ["**/*.go"]
 depends = ["manifests", "generate", "fmt", "vet"]
 
 [tasks.start]
-env = { POD_NAMESPACE = "minio-controller" }
+env = { POD_NAMESPACE = "minio-controller-system" }
 run = "go run ./cmd/main.go"
 depends = ["manifests", "generate", "fmt", "vet"]
 
@@ -112,12 +112,12 @@ run = '{{vars.container_tool}} push {{arg(name="img",default=vars.image)}}'
 
 [tasks."minio:deploy"]
 run = [
-  "kustomize build --enable-helm deploy/minio/ | kubectl apply -f-",
-  "kustomize build --enable-helm deploy/minio-controller/ | kubectl apply -f-"
+  "kustomize build --enable-helm config/minio/ | kubectl apply -f-",
+  "kustomize build --enable-helm config/base/ | kubectl apply -f-",
 ]
 
 [tasks."minio:teardown"]
 run = [
-  "kustomize build --enable-helm deploy/minio/ | kubectl delete -f-",
-  "kustomize build --enable-helm deploy/minio-controller/ | kubectl delete -f-"
+  "kustomize build --enable-helm config/minio/ | kubectl delete -f-",
+  "kustomize build --enable-helm config/base/ | kubectl delete -f-",
 ]

@@ -15,6 +15,7 @@ namePrefix: minio-controller-
 #    someName: someValue
 
 resources:
+- ../base
 - ../crd
 - ../rbac
 - ../manager
