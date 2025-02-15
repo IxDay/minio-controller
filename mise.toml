@@ -22,6 +22,7 @@ go = "1.23"
 "go:sigs.k8s.io/controller-tools/cmd/controller-gen" = "v0.17.1"
 "aqua:helm/helm" = "3.16"
 "aqua:minio/mc" = "RELEASE.2025-02-08T19-14-21Z"
+"go:github.com/go-delve/delve/cmd/dlv" = "1.24"
 
 [tasks.build]
 run = "go build -o bin/manager cmd/main.go"

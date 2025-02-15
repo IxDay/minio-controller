@@ -157,7 +157,7 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// Bucket created successfully
 		// We will requeue the reconciliation so that we can ensure the state
 		// and move forward for the next operations
-		return ctrl.Result{RequeueAfter: time.Minute}, nil
+		return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
 	}
 
 	secret := &corev1.Secret{ObjectMeta: bucket.ObjectMeta}
