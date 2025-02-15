@@ -72,7 +72,8 @@ run = 'golangci-lint config verify'
 run = '''{% raw %}go list -m -f "{{slice .Version 1 }}" sigs.k8s.io/controller-runtime{% endraw %} | cut -d. -f-2'''
 
 [tasks."kind:create"]
-run = "kind create cluster"
+run = "kind --config=kind.yaml create cluster"
+depends_post = ["install", "minio:deploy"]
 
 [tasks."kind:delete"]
 run = "kind delete cluster"
@@ -87,7 +88,13 @@ run = "{{vars.container_tool}} build -t {{vars.image}} ."
 run = "{{vars.container_tool}} push {{vars.image}}"
 
 [tasks."minio:deploy"]
-run = "kustomize build --enable-helm deploy/minio/ | k apply -f-"
+run = [
+  "kustomize build --enable-helm deploy/minio/ | kubectl apply -f-",
+  "kustomize build --enable-helm deploy/minio-controller/ | kubectl apply -f-"
+]
 
 [tasks."minio:teardown"]
-run = "kustomize build --enable-helm deploy/minio/ | k delete -f-"
+run = [
+  "kustomize build --enable-helm deploy/minio/ | kubectl delete -f-",
+  "kustomize build --enable-helm deploy/minio-controller/ | kubectl delete -f-"
+]

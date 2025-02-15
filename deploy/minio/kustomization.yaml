@@ -7,6 +7,16 @@ labels:
   pairs:
     app: minio
 
+resources:
+  - namespace.yaml
+
+secretGenerator:
+  - name: minio
+    literals:
+      - rootUser=minio
+      - rootPassword=miniominio
+    options:
+      disableNameSuffixHash: true
 
 helmCharts:
 - name: minio
@@ -16,8 +26,13 @@ helmCharts:
   version: 5.4.0
   valuesInline:
     mode: standalone
+    existingSecret: "minio"
+    service:
+      type: NodePort
+      nodePort: "32000"
     consoleService:
-      port: "9001"
+      type: NodePort
+      nodePort: "32001"
     image:
       repository: quay.io/minio/minio
       tag: RELEASE.2025-02-03T21-03-04Z
