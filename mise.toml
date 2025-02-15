@@ -80,13 +80,13 @@ depends_post = ["install", "minio:deploy"]
 run = "kind delete cluster"
 
 [tasks."kind:load"]
-run = "kind load docker-image {{vars.image}}"
+run = 'kind load docker-image {{arg(name="img",default=vars.image)}}'
 
 [tasks."docker:build"]
-run = "{{vars.container_tool}} build -t {{vars.image}} ."
+run = '{{vars.container_tool}} build -t {{arg(name="img",default=vars.image)}} .'
 
 [tasks."docker:push"]
-run = "{{vars.container_tool}} push {{vars.image}}"
+run = '{{vars.container_tool}} push {{arg(name="img",default=vars.image)}}'
 
 [tasks."minio:deploy"]
 run = [
