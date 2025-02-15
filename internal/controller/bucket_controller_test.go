@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	bucketv1alpha1 "github.com/IxDay/api/v1alpha1"
+	"github.com/IxDay/internal/minio"
 )
 
 var _ = Describe("Bucket Controller", func() {
@@ -69,8 +70,9 @@ var _ = Describe("Bucket Controller", func() {
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &BucketReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+				Client:      k8sClient,
+				Scheme:      k8sClient.Scheme(),
+				MinioClient: minio.NewStub(),
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{

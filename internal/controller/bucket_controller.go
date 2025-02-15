@@ -48,7 +48,7 @@ const (
 type BucketReconciler struct {
 	client.Client
 	Scheme      *runtime.Scheme
-	MinioClient *minio.Client
+	MinioClient minio.Client
 }
 
 // +kubebuilder:rbac:groups=minio.ixday.github.io,resources=buckets,verbs=get;list;watch;create;update;patch;delete
