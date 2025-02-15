@@ -7,6 +7,8 @@ MC_CONFIG_DIR = "{{config_root}}/.mc"
 container_tool = "docker"
 image = "minio-controller:latest"
 ignore_not_found = "false"
+envtest_version = "release-0.20"
+k8s_version = "1.32"
 
 [tools]
 go = "1.23"
@@ -40,6 +42,16 @@ depends = ["manifests", "generate", "fmt", "vet"]
 depends = ["manifests"]
 run = 'kustomize build config/crd | kubectl apply -f-'
 
+[tasks.deploy]
+depends = ["manifests"]
+run = [
+    'cd config/manager && kustomize edit set image controller="{{arg(name="img",default=vars.image)}}"',
+    'kustomize build config/default | kubectl apply -f-',
+]
+
+[tasks.teardown]
+run = 'kustomize build config/default | kubectl delete --ignore-not-found={{vars.ignore_not_found}} -f-'
+
 [tasks.uninstall]
 depends = ["manifests"]
 run = 'kustomize build config/crd | kubectl delete --ignore-not-found={{vars.ignore_not_found}} -f-'
@@ -57,8 +69,9 @@ run = 'go fmt ./...'
 run = 'go vet ./...'
 
 [tasks.test]
-depends = ["manifests", "generate", "fmt", "vet", "setup-envtest"]
-run = ''
+depends = ["manifests", "generate", "fmt", "vet", "envtest:setup"]
+env.K8S_VERSION = '{{vars.k8s_version}}'
+file = "./scripts/test.sh"
 
 [tasks.lint]
 run = 'golangci-lint run'
@@ -69,8 +82,18 @@ run = 'golangci-lint run --fix'
 [tasks."lint:config"]
 run = 'golangci-lint config verify'
 
-[tasks.setup-envtest-version]
-run = '''{% raw %}go list -m -f "{{slice .Version 1 }}" sigs.k8s.io/controller-runtime{% endraw %} | cut -d. -f-2'''
+[tasks."envtest:version"]
+run = '''{% raw %}go list -m -f "{{ .Version }}" sigs.k8s.io/controller-runtime | awk -F'[v.]' '{printf "release-%d.%d", $2, $3}'{% endraw %} | cut -d. -f-2'''
+
+[tasks."k8s:version"]
+run = '''{% raw %}go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $3}'{% endraw %}'''
+
+[tasks."envtest:setup"]
+quiet = true
+run = [
+    'echo "Setting up envtest binaries for Kubernetes version {{vars.envtest_version}}"',
+    'setup-envtest use {{vars.k8s_version}} --bin-dir bin -p path',
+]
 
 [tasks."kind:create"]
 run = "kind --config=kind.yaml create cluster"
