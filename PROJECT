@@ -17,4 +17,13 @@ resources:
   kind: Bucket
   path: github.com/IxDay/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: ixday.github.io
+  group: minio
+  kind: Policy
+  path: github.com/IxDay/api/v1alpha1
+  version: v1alpha1
 version: "3"

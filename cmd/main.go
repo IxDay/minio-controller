@@ -45,6 +45,7 @@ import (
 
 	bucketv1alpha1 "github.com/IxDay/api/v1alpha1"
 
+	miniov1alpha1 "github.com/IxDay/api/v1alpha1"
 	"github.com/IxDay/internal/controller"
 	"github.com/IxDay/internal/minio"
 	// +kubebuilder:scaffold:imports
@@ -59,6 +60,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(bucketv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(miniov1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -245,6 +247,13 @@ func main() {
 		MinioClient: client,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Minio")
+		os.Exit(1)
+	}
+	if err = (&controller.PolicyReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Policy")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

@@ -8,6 +8,7 @@ rules:
   - minio.ixday.github.io
   resources:
   - buckets
+  - policies
   verbs:
   - create
   - delete
@@ -20,12 +21,14 @@ rules:
   - minio.ixday.github.io
   resources:
   - buckets/finalizers
+  - policies/finalizers
   verbs:
   - update
 - apiGroups:
   - minio.ixday.github.io
   resources:
   - buckets/status
+  - policies/status
   verbs:
   - get
   - patch

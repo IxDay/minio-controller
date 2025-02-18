@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/minio.ixday.github.io_buckets.yaml
+- bases/minio.ixday.github.io_policies.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

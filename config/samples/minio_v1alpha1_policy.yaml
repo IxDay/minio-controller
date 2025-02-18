@@ -1,0 +1,9 @@
+apiVersion: minio.ixday.github.io/v1alpha1
+kind: Policy
+metadata:
+  labels:
+    app.kubernetes.io/name: minio-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: policy-sample
+spec:
+  # TODO(user): Add fields here
