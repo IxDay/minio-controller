@@ -13,6 +13,8 @@ import (
 
 const defaultLocation = "us-east-1"
 
+type BucketClient = minio.Client
+
 type Client interface {
 	UserDelete(ctx context.Context, bucket string) error
 	UserCreate(ctx context.Context, user, password, bucket string) error
@@ -51,6 +53,14 @@ func NewClientFromSecret(secret *corev1.Secret) (Client, error) {
 		return nil, ErrInvalidSecret
 	}
 	return NewClient(endpoint, user, password)
+}
+
+func NewMinioClientFromSecret(secret *corev1.Secret) (*minio.Client, error) {
+	c, err := NewClientFromSecret(secret)
+	if err != nil {
+		return nil, err
+	}
+	return c.(*client).Client, nil
 }
 
 func (c *client) BucketCreate(ctx context.Context, name string) error {

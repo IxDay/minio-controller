@@ -2,6 +2,7 @@
 KUBECONFIG = "{{config_root}}/kubeconfig"
 KIND_CLUSTER_NAME = "minio-controller"
 MC_CONFIG_DIR = "{{config_root}}/.mc"
+POD_NAMESPACE = "minio-controller-system"
 
 [vars]
 container_tool = "docker"
@@ -33,7 +34,6 @@ sources = ["**/*.go"]
 depends = ["manifests", "generate", "fmt", "vet"]
 
 [tasks.start]
-env = { POD_NAMESPACE = "minio-controller-system" }
 run = "go run ./cmd/main.go"
 depends = ["manifests", "generate", "fmt", "vet"]
 
