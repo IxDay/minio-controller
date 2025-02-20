@@ -104,6 +104,14 @@ run = "kind delete cluster"
 [tasks."kind:load"]
 run = 'kind load docker-image {{arg(name="img",default=vars.image)}}'
 
+[tasks."installer:build"]
+depends = ["manifests", "generate"]
+run = [
+  'mkdir -p dist',
+  'cd config/manager && kustomize edit set image controller="{{arg(name="img",default=vars.image)}}"',
+  'kustomize build config/default > dist/install.yaml',
+]
+
 [tasks."docker:build"]
 run = '{{vars.container_tool}} build -t {{arg(name="img",default=vars.image)}} .'
 
