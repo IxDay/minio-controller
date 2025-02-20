@@ -12,7 +12,8 @@
             "program": "${workspaceFolder}/cmd",
             "env": {
               "POD_NAMESPACE": "minio-controller-system"
-            }
+            },
+            "preLaunchTask": "pre-launch"
         }
     ]
 }

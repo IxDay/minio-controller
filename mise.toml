@@ -35,7 +35,7 @@ depends = ["manifests", "generate", "fmt", "vet"]
 
 [tasks.start]
 run = "go run ./cmd/main.go"
-depends = ["manifests", "generate", "fmt", "vet"]
+depends = ["manifests", "generate", "install", "fmt", "vet"]
 
 [tasks.install]
 depends = ["manifests"]
