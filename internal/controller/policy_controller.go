@@ -45,8 +45,6 @@ const (
 	finalizerNamePolicy = "policy.ixday.github.io/finalizer"
 )
 
-var ()
-
 // PolicyReconciler reconciles a Policy object
 type PolicyReconciler struct {
 	client.Client

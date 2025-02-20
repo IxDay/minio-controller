@@ -32,7 +32,7 @@ const (
 	// Total length of the alpha numeric table.
 	alphaNumericTableLen = byte(len(alphaNumericTable))
 
-	reservedChars = "=,"
+	// reservedChars = "=,"
 )
 
 // GenerateAccessKey returns a new access key generated randomly using

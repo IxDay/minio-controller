@@ -84,11 +84,12 @@ func CreateMinioClient() (*minio.BucketClient, error) {
 }
 
 func main() {
-	flag.StringVar(&connectionSecret, "connection-secret", "minio-controller-secret", "name of a secret containing connections strings to a minio cluster")
+	flag.StringVar(&connectionSecret, "connection-secret", "minio-controller-secret",
+		"name of a secret containing connections strings to a minio cluster")
 	flag.Parse()
 	client, err := CreateMinioClient()
 	if err != nil {
-		fmt.Printf("failed to instanciate minio client: %q\n", err)
+		fmt.Printf("failed to instantiate minio client: %q\n", err)
 		os.Exit(1)
 	}
 	if len(os.Args) < 2 {
@@ -102,8 +103,14 @@ func main() {
 			os.Exit(1)
 		}
 		buffer := bytes.Buffer{}
-		json.Indent(&buffer, []byte(policy), "", "  ")
-		buffer.WriteTo(os.Stdout)
+		if err := json.Indent(&buffer, []byte(policy), "", "  "); err != nil {
+			fmt.Printf("failed to render json: %q\n", err)
+			os.Exit(1)
+		}
+		if _, err := buffer.WriteTo(os.Stdout); err != nil {
+			fmt.Printf("failed to output rendered json: %q\n", err)
+			os.Exit(1)
+		}
 	}
 
 }

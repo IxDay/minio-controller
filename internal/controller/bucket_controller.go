@@ -123,7 +123,7 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// Let's just set the status as Unknown when no status is available
-	if bucket.Status.Conditions == nil || len(bucket.Status.Conditions) == 0 {
+	if len(bucket.Status.Conditions) == 0 {
 		condition := metav1.Condition{
 			Type: typeAvailableBucket, Status: metav1.ConditionUnknown,
 			Reason: "Reconciling", Message: "Starting reconciliation",

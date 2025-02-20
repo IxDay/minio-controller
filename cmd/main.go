@@ -92,7 +92,8 @@ func main() {
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
-	flag.StringVar(&connectionSecret, "connection-secret", "minio-controller-secret", "name of a secret containing connections strings to a minio cluster")
+	flag.StringVar(&connectionSecret, "connection-secret", "minio-controller-secret",
+		"name of a secret containing connections strings to a minio cluster")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -238,7 +239,7 @@ func main() {
 
 	client, err := minio.NewClientFromSecret(secret)
 	if err != nil {
-		setupLog.Error(err, "failed to instanciate minio client from secret")
+		setupLog.Error(err, "failed to instantiate minio client from secret")
 	}
 
 	if err = (&controller.BucketReconciler{
