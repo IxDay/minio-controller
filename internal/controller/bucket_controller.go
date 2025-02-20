@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	bucketv1alpha1 "github.com/IxDay/api/v1alpha1"
+	miniov1alpha1 "github.com/IxDay/api/v1alpha1"
 	"github.com/IxDay/internal/minio"
 )
 
@@ -51,6 +51,8 @@ type BucketReconciler struct {
 	MinioClient minio.Client
 }
 
+type Bucket = miniov1alpha1.Bucket
+
 // +kubebuilder:rbac:groups=minio.ixday.github.io,resources=buckets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=minio.ixday.github.io,resources=buckets/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=minio.ixday.github.io,resources=buckets/finalizers,verbs=update
@@ -67,7 +69,7 @@ type BucketReconciler struct {
 func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	bucket := &bucketv1alpha1.Bucket{}
+	bucket := &miniov1alpha1.Bucket{}
 	if err := r.Get(ctx, req.NamespacedName, bucket); err != nil {
 		if apierrors.IsNotFound(err) {
 			// If the custom resource is not found then it usually means that it was deleted or not created
@@ -96,7 +98,7 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if controllerutil.ContainsFinalizer(bucket, finalizerName) {
 			// our finalizer is present, so lets handle any external dependency
 			log.Info("Deleting associated users and policies", "Bucket.Name", bucket.BucketName())
-			if err := r.MinioClient.UserDelete(ctx, bucket.BucketName()); err != nil {
+			if err := r.MinioClient.PolicyDelete(ctx, bucket.BucketName()); err != nil {
 				log.Error(err, "Failed deleting associated users and policies", "Bucket.Name", bucket.BucketName())
 				return ctrl.Result{}, err
 			}
@@ -145,7 +147,7 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	found, err := r.MinioClient.BucketExists(ctx, bucket.BucketName())
 	if err != nil {
-		log.Error(err, "Failed to get bucket")
+		log.Error(err, "Failed to check bucket exists")
 	} else if !found {
 		log.Info("Creating a new Bucket", "Bucket.Name", bucket.BucketName())
 
@@ -157,17 +159,12 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// Bucket created successfully
 		// We will requeue the reconciliation so that we can ensure the state
 		// and move forward for the next operations
-		return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 
-	secret := &corev1.Secret{ObjectMeta: bucket.ObjectMeta}
-	if bucket.Spec.SecretName != "" {
-		secret.Name = bucket.Spec.SecretName
-	}
-	err = r.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, secret)
+	secret, err := r.getSecret(ctx, bucket)
 	if apierrors.IsNotFound(err) {
-		sec, err := r.secretForBucket(bucket)
-		if err != nil {
+		if secret, err = r.secretForBucket(bucket); err != nil {
 			log.Error(err, "Failed to define new Secret resource for Bucket")
 
 			// The following implementation will update the status
@@ -179,20 +176,13 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				log.Error(err, "Failed to update Bucket status")
 				return ctrl.Result{}, err
 			}
-
 			return ctrl.Result{}, err
 		}
-		user, password := string(sec.Data["user"]), string(sec.Data["password"])
-		if err := r.MinioClient.UserCreate(ctx, user, password, bucket.BucketName()); err != nil {
-			log.Error(err, "Failed to create Bucket user, policy and attach")
-			return ctrl.Result{}, err
-		}
-
 		log.Info("Creating a new Secret",
-			"Secret.Namespace", sec.Namespace, "Secret.Name", sec.Name)
-		if err = r.Create(ctx, sec); err != nil {
+			"Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
+		if err = r.Create(ctx, secret); err != nil {
 			log.Error(err, "Failed to create new Secret",
-				"Secret.Namespace", sec.Namespace, "Secret.Name", sec.Name)
+				"Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
 			return ctrl.Result{}, err
 		}
 		// Secret created successfully
@@ -204,6 +194,21 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// Let's return the error for the reconciliation be re-trigged again
 		return ctrl.Result{}, err
 	}
+
+	condition := meta.FindStatusCondition(bucket.Status.Conditions, typeAvailablePolicy)
+	if condition == nil || condition.Status != metav1.ConditionTrue {
+		policy := minio.NewDefaultPolicy(bucket.BucketName())
+		if err := policy.SetUser(secret.Data["user"], secret.Data["password"]); err != nil {
+			log.Error(err, "invalid credentials", "Secret.Name", secret.Name)
+			return ctrl.Result{}, err
+		}
+
+		if err := r.MinioClient.PolicyCreate(ctx, policy); err != nil {
+			log.Error(err, "Failed to create Bucket user, policy and attach")
+			return ctrl.Result{}, err
+		}
+	}
+
 	// The following implementation will update the status
 	meta.SetStatusCondition(&bucket.Status.Conditions, metav1.Condition{Type: typeAvailableBucket,
 		Status: metav1.ConditionTrue, Reason: "Reconciling",
@@ -220,12 +225,22 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 // SetupWithManager sets up the controller with the Manager.
 func (r *BucketReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&bucketv1alpha1.Bucket{}).
+		For(&miniov1alpha1.Bucket{}).
 		Named("bucket").
 		Complete(r)
 }
 
-func (r *BucketReconciler) secretForBucket(bucket *bucketv1alpha1.Bucket) (*corev1.Secret, error) {
+func (r *BucketReconciler) getSecret(ctx context.Context, bucket *Bucket) (*corev1.Secret, error) {
+	secret := &corev1.Secret{ObjectMeta: bucket.ObjectMeta}
+	if bucket.Spec.SecretName != "" {
+		secret.Name = bucket.Spec.SecretName
+	}
+	namespacedName := types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}
+	err := r.Get(ctx, namespacedName, secret)
+	return secret, err
+}
+
+func (r *BucketReconciler) secretForBucket(bucket *Bucket) (*corev1.Secret, error) {
 	user, err := minio.GenerateAccessKey(0, nil)
 	if err != nil {
 		return nil, err

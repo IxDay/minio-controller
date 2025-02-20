@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/minio/madmin-go/v3"
@@ -16,11 +17,11 @@ const defaultLocation = "us-east-1"
 type BucketClient = minio.Client
 
 type Client interface {
-	UserDelete(ctx context.Context, bucket string) error
-	UserCreate(ctx context.Context, user, password, bucket string) error
 	BucketCreate(ctx context.Context, name string) error
 	BucketDelete(ctx context.Context, name string) error
 	BucketExists(ctx context.Context, name string) (bool, error)
+	PolicyCreate(ctx context.Context, policy *Policy) error
+	PolicyDelete(ctx context.Context, name string) error
 }
 
 type client struct {
@@ -87,20 +88,21 @@ func (c *client) BucketDelete(ctx context.Context, name string) error {
 	return c.RemoveBucket(ctx, name)
 }
 
-func (c *client) UserCreate(ctx context.Context, user, password, bucket string) error {
-	if err := c.AddUser(ctx, user, password); err != nil {
+func (c *client) PolicyCreate(ctx context.Context, policy *Policy) error {
+	if err := c.AddUser(ctx, policy.User.Name, policy.User.Password); err != nil {
 		return err
 	}
-	policy, err := DefaultPolicyJSON(bucket)
+	p, err := json.Marshal(policy.Policy)
 	if err != nil {
 		return err
 	}
-	if err := c.AddCannedPolicy(ctx, bucket, policy); err != nil {
+
+	if err := c.AddCannedPolicy(ctx, policy.Name, p); err != nil {
 		return err
 	}
 	association := madmin.PolicyAssociationReq{
-		Policies: []string{bucket},
-		User:     user,
+		Policies: []string{policy.Name},
+		User:     policy.User.Name,
 	}
 	if _, err := c.AttachPolicy(ctx, association); err != nil {
 		return err
@@ -108,11 +110,14 @@ func (c *client) UserCreate(ctx context.Context, user, password, bucket string) 
 	return nil
 }
 
-func (c *client) UserDelete(ctx context.Context, bucket string) error {
-	query := madmin.PolicyEntitiesQuery{Policy: []string{bucket}}
+func (c *client) PolicyDelete(ctx context.Context, policy string) error {
+	query := madmin.PolicyEntitiesQuery{Policy: []string{policy}}
 	result, err := c.GetPolicyEntities(ctx, query)
 	if err != nil {
 		return err
+	}
+	if result.PolicyMappings == nil {
+		return nil
 	}
 	errs := []error{}
 	for _, user := range result.PolicyMappings[0].Users {
@@ -120,15 +125,15 @@ func (c *client) UserDelete(ctx context.Context, bucket string) error {
 			errs = append(errs, err)
 		}
 	}
-	return errors.Join(append(errs, c.RemoveCannedPolicy(ctx, bucket))...)
+	return errors.Join(append(errs, c.RemoveCannedPolicy(ctx, policy))...)
 }
 
 type stub struct{}
 
-func (s stub) BucketCreate(context.Context, string) error               { return nil }
-func (s stub) BucketExists(context.Context, string) (bool, error)       { return true, nil }
-func (s stub) BucketDelete(context.Context, string) error               { return nil }
-func (s stub) UserCreate(context.Context, string, string, string) error { return nil }
-func (s stub) UserDelete(context.Context, string) error                 { return nil }
+func (s stub) BucketCreate(context.Context, string) error         { return nil }
+func (s stub) BucketExists(context.Context, string) (bool, error) { return true, nil }
+func (s stub) BucketDelete(context.Context, string) error         { return nil }
+func (s stub) PolicyCreate(context.Context, *Policy) error        { return nil }
+func (s stub) PolicyDelete(context.Context, string) error         { return nil }
 
 func NewStub() Client { return stub{} }
