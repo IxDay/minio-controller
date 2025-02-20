@@ -77,8 +77,36 @@ func DefaultPolicy(bucketName string) *policy.Policy {
 	}
 }
 
-func DefaultPolicyJSON(bucketName string) ([]byte, error) {
-	return json.Marshal(DefaultPolicy(bucketName))
+func BucketPolicy(bucketName string, statements []v1alpha1.Statement) (*policy.Policy, error) {
+	p := policy.Policy{Version: policy.DefaultVersion, Statements: make([]policy.Statement, len(statements))}
+	for i, statement := range statements {
+		resources := make(policy.ResourceSet, len(statement.SubPaths))
+		if len(resources) == 0 {
+			resources = policy.ResourceSet{policy.NewResource(bucketName): {}}
+		}
+		for _, path := range statement.SubPaths {
+			r := policy.NewResource(bucketName + "/" + path)
+			if !r.IsValid() {
+				return nil, ErrInvalidSubPath
+			}
+			resources[r] = empty
+		}
+		actions := make(policy.ActionSet, len(statement.SubPaths))
+		for _, action := range statement.Actions {
+			a := policy.Action(action)
+			if !a.IsValid() {
+				return nil, ErrInvalidAction
+			}
+			actions[a] = empty
+		}
+
+		p.Statements[i] = policy.Statement{
+			Effect:    policy.Effect(statement.Effect),
+			Resources: resources,
+			Actions:   actions,
+		}
+	}
+	return &p, nil
 }
 
 func ParsePolicy() *policy.Policy {

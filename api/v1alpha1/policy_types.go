@@ -20,22 +20,34 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // PolicySpec defines the desired state of Policy.
 type PolicySpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// +kubebuilder:validation:Required
+	BucketName string `json:"bucketName"`
 
-	// Foo is an example field of Policy. Edit policy_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// +kubebuilder:validation:Optional
+	SecretName string `json:"secretName"`
+
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:Required
+	Statements []Statement `json:"statements"`
+}
+
+type Statement struct {
+	// +kubebuilder:validation:Optional
+	// +listType=set
+	SubPaths []string `json:"subPaths"`
+	// +kubebuilder:validation:Enum=Allow;Deny
+	// +kubebuilder:validation:Required
+	Effect string `json:"effect"`
+	// +kubebuilder:validation:Required
+	// +listType=set
+	Actions []string `json:"actions"`
 }
 
 // PolicyStatus defines the observed state of Policy.
 type PolicyStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // +kubebuilder:object:root=true
@@ -46,8 +58,13 @@ type Policy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   PolicySpec   `json:"spec,omitempty"`
+	// +kubebuilder:validation:Required
+	Spec   PolicySpec   `json:"spec"`
 	Status PolicyStatus `json:"status,omitempty"`
+}
+
+func (p Policy) PolicyName() string {
+	return p.Namespace + Separator + p.Spec.BucketName + Separator + p.Name
 }
 
 // +kubebuilder:object:root=true
