@@ -195,18 +195,16 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	condition := meta.FindStatusCondition(bucket.Status.Conditions, typeAvailablePolicy)
-	if condition == nil || condition.Status != metav1.ConditionTrue {
-		policy := minio.NewDefaultPolicy(bucket.BucketName())
-		if err := policy.SetUser(secret.Data["user"], secret.Data["password"]); err != nil {
-			log.Error(err, "invalid credentials", "Secret.Name", secret.Name)
-			return ctrl.Result{}, err
-		}
+	log.V(2).Info("Reconciling bucket policy")
+	policy := minio.NewDefaultPolicy(bucket.BucketName())
+	if err := policy.SetUser(secret.Data["user"], secret.Data["password"]); err != nil {
+		log.Error(err, "invalid credentials", "Secret.Name", secret.Name)
+		return ctrl.Result{}, err
+	}
 
-		if err := r.MinioClient.PolicyCreate(ctx, policy); err != nil {
-			log.Error(err, "Failed to create Bucket user, policy and attach")
-			return ctrl.Result{}, err
-		}
+	if err := r.MinioClient.PolicyReconcile(ctx, policy); err != nil {
+		log.Error(err, "Failed to create Bucket user, policy and attach")
+		return ctrl.Result{}, err
 	}
 
 	// The following implementation will update the status

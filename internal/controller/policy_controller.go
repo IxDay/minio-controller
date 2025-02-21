@@ -191,24 +191,22 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// Let's return the error for the reconciliation be re-trigged again
 		return ctrl.Result{}, err
 	}
-	condition := meta.FindStatusCondition(policy.Status.Conditions, typeAvailablePolicy)
-	if condition == nil || condition.Status != metav1.ConditionTrue {
-		log.Info("Creating a new Policy")
-		policyMinio := &minio.Policy{
-			Bucket: bucket.BucketName(), Name: policy.PolicyName(),
-		}
-		if err := policyMinio.SetUser(secret.Data["user"], secret.Data["password"]); err != nil {
-			log.Error(err, "invalid credentials", "Secret.Name", secret.Name)
-			return ctrl.Result{}, err
-		}
-		if err = policyMinio.SetPolicy(policy.Spec.Statements); err != nil {
-			log.Error(err, "invalid policy", "Policy.Name", policy.PolicyName())
-			return ctrl.Result{}, err
-		}
-		if err := r.MinioClient.PolicyCreate(ctx, policyMinio); err != nil {
-			log.Error(err, "failed to create user, policy and attach")
-			return ctrl.Result{}, err
-		}
+
+	log.V(2).Info("Reconciling policy")
+	policyMinio := &minio.Policy{
+		Bucket: bucket.BucketName(), Name: policy.PolicyName(),
+	}
+	if err := policyMinio.SetUser(secret.Data["user"], secret.Data["password"]); err != nil {
+		log.Error(err, "invalid credentials", "Secret.Name", secret.Name)
+		return ctrl.Result{}, err
+	}
+	if err = policyMinio.SetPolicy(policy.Spec.Statements); err != nil {
+		log.Error(err, "invalid policy", "Policy.Name", policy.PolicyName())
+		return ctrl.Result{}, err
+	}
+	if err := r.MinioClient.PolicyReconcile(ctx, policyMinio); err != nil {
+		log.Error(err, "failed to create user, policy and attach")
+		return ctrl.Result{}, err
 	}
 
 	// The following implementation will update the status

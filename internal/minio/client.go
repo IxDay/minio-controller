@@ -20,7 +20,7 @@ type Client interface {
 	BucketCreate(ctx context.Context, name string) error
 	BucketDelete(ctx context.Context, name string) error
 	BucketExists(ctx context.Context, name string) (bool, error)
-	PolicyCreate(ctx context.Context, policy *Policy) error
+	PolicyReconcile(ctx context.Context, policy *Policy) error
 	PolicyDelete(ctx context.Context, name string) error
 }
 
@@ -88,16 +88,20 @@ func (c *client) BucketDelete(ctx context.Context, name string) error {
 	return c.RemoveBucket(ctx, name)
 }
 
-func (c *client) PolicyCreate(ctx context.Context, policy *Policy) error {
-	if err := c.AddUser(ctx, policy.User.Name, policy.User.Password); err != nil {
-		return err
-	}
+func (c *client) policyCreate(ctx context.Context, policy *Policy) error {
 	p, err := json.Marshal(policy.Policy)
 	if err != nil {
 		return err
 	}
 
 	if err := c.AddCannedPolicy(ctx, policy.Name, p); err != nil {
+		return err
+	}
+	return c.userCreate(ctx, policy)
+}
+
+func (c *client) userCreate(ctx context.Context, policy *Policy) error {
+	if err := c.AddUser(ctx, policy.User.Name, policy.User.Password); err != nil {
 		return err
 	}
 	association := madmin.PolicyAssociationReq{
@@ -108,6 +112,30 @@ func (c *client) PolicyCreate(ctx context.Context, policy *Policy) error {
 		return err
 	}
 	return nil
+}
+
+func (c *client) PolicyReconcile(ctx context.Context, policy *Policy) error {
+	entities := madmin.PolicyEntitiesQuery{Policy: []string{policy.Name}}
+	results, err := c.GetPolicyEntities(ctx, entities)
+	if err != nil {
+		return err
+	}
+	if len(results.PolicyMappings) == 0 {
+		return c.policyCreate(ctx, policy)
+	}
+	if len(results.PolicyMappings[0].Users) == 0 {
+		return c.userCreate(ctx, policy)
+	}
+	user := results.PolicyMappings[0].Users[0]
+	if policy.User.Name == user {
+		// update current user with password
+		return c.SetUser(ctx, policy.User.Name, policy.User.Password, madmin.AccountEnabled)
+	}
+	// delete old user and set new one
+	if err := c.RemoveUser(ctx, user); err != nil {
+		return err
+	}
+	return c.userCreate(ctx, policy)
 }
 
 func (c *client) PolicyDelete(ctx context.Context, policy string) error {
@@ -133,7 +161,7 @@ type stub struct{}
 func (s stub) BucketCreate(context.Context, string) error         { return nil }
 func (s stub) BucketExists(context.Context, string) (bool, error) { return true, nil }
 func (s stub) BucketDelete(context.Context, string) error         { return nil }
-func (s stub) PolicyCreate(context.Context, *Policy) error        { return nil }
+func (s stub) PolicyReconcile(context.Context, *Policy) error     { return nil }
 func (s stub) PolicyDelete(context.Context, string) error         { return nil }
 
 func NewStub() Client { return stub{} }
