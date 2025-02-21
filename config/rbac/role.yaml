@@ -4,6 +4,15 @@ kind: ClusterRole
 metadata:
   name: manager-role
 rules:
+- resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - patch
+  - update
+  - watch
 - apiGroups:
   - minio.ixday.github.io
   resources:

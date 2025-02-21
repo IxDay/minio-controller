@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"time"
@@ -29,9 +30,14 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	miniov1alpha1 "github.com/IxDay/api/v1alpha1"
 	"github.com/IxDay/internal/minio"
@@ -41,7 +47,8 @@ const (
 	// typeAvailableBucket represents the status of the Bucket reconciliation
 	typeAvailableBucket = "Available"
 	// name of our custom finalizer
-	finalizerName = "bucket.ixday.github.io/finalizer"
+	finalizerName    = "bucket.ixday.github.io/finalizer"
+	annotationBucket = "bucket.ixday.github.io/secret"
 )
 
 // BucketReconciler reconciles a Bucket object
@@ -56,6 +63,7 @@ type Bucket = miniov1alpha1.Bucket
 // +kubebuilder:rbac:groups=minio.ixday.github.io,resources=buckets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=minio.ixday.github.io,resources=buckets/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=minio.ixday.github.io,resources=buckets/finalizers,verbs=update
+// +kubebuilder:rbac:resources=secrets,verbs=get;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -69,11 +77,13 @@ type Bucket = miniov1alpha1.Bucket
 func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
+	log.V(2).Info("Triggered reconciliation")
 	bucket := &miniov1alpha1.Bucket{}
 	if err := r.Get(ctx, req.NamespacedName, bucket); err != nil {
 		if apierrors.IsNotFound(err) {
 			// If the custom resource is not found then it usually means that it was deleted or not created
 			// In this way, we will stop the reconciliation
+			log.V(2).Info("Not found")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -193,6 +203,16 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		log.Error(err, "Failed to get Secret")
 		// Let's return the error for the reconciliation be re-trigged again
 		return ctrl.Result{}, err
+	} else if bucket.Spec.SecretName != "" && (secret.Annotations == nil || secret.Annotations[annotationBucket] == "") {
+		if secret.Annotations == nil {
+			secret.Annotations = map[string]string{annotationBucket: bucket.Name}
+		} else {
+			secret.Annotations[annotationBucket] = bucket.Name
+		}
+		if err := r.Update(ctx, secret); err != nil {
+			log.Error(err, "Failed to update Bucket Secret annotation")
+			return ctrl.Result{}, err
+		}
 	}
 
 	log.V(2).Info("Reconciling bucket policy")
@@ -224,6 +244,38 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 func (r *BucketReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&miniov1alpha1.Bucket{}).
+		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(
+			func(ctx context.Context, cm client.Object) []ctrl.Request {
+				annotations := cm.GetAnnotations()
+				if annotations == nil || annotations[annotationBucket] == "" {
+					return nil
+				}
+				return []reconcile.Request{{
+					NamespacedName: types.NamespacedName{
+						Name:      annotations[annotationBucket],
+						Namespace: cm.GetNamespace(),
+					},
+				}}
+			}),
+			builder.WithPredicates(predicate.Funcs{
+				UpdateFunc: func(tue event.TypedUpdateEvent[client.Object]) bool {
+					old := tue.ObjectOld.(*corev1.Secret)
+					new := tue.ObjectNew.(*corev1.Secret)
+					return new.Data == nil || old.Data == nil ||
+						!bytes.Equal(new.Data["user"], old.Data["user"]) ||
+						!bytes.Equal(new.Data["password"], old.Data["password"])
+				},
+				CreateFunc: func(tce event.TypedCreateEvent[client.Object]) bool {
+					return true
+				},
+				DeleteFunc: func(tde event.TypedDeleteEvent[client.Object]) bool {
+					return true
+				},
+				GenericFunc: func(tge event.TypedGenericEvent[client.Object]) bool {
+					return true
+				},
+			}),
+		).
 		Named("bucket").
 		Complete(r)
 }
