@@ -37,6 +37,10 @@ depends = ["manifests", "generate", "fmt", "vet"]
 run = "go run ./cmd/main.go"
 depends = ["manifests", "generate", "install", "fmt", "vet"]
 
+[tasks."start:verbose"]
+run = "go run ./cmd/main.go -zap-log-level 2"
+depends = ["manifests", "generate", "install", "fmt", "vet"]
+
 [tasks.install]
 depends = ["manifests"]
 run = 'kustomize build config/crd | kubectl apply -f-'
