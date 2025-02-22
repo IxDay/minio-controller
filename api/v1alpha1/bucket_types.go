@@ -28,7 +28,39 @@ const Separator = "."
 // BucketSpec defines the desired state of Bucket.
 type BucketSpec struct {
 	SecretName string `json:"secretName"`
+
+	// Specifies which policy is attached to the current bucket.
+	// Valid values are:
+	// - "private" (default): forbids anonymous user to perform any action on the bucket;
+	// - "public": allows any action of upload or download on the bucket for the anonymous user;
+	// - "upload": allows all the upload actions to the anonymous user on the bucket;
+	// - "download": allows all the download actions to the anonymous user on the bucket;
+	// +optional
+	// +kubebuilder:default=private
+	Policy BucketPolicy `json:"policy"`
 }
+
+// BucketPolicy describes the policy attached to the bucket for the anonymous user to use.
+// Only one of the following policies may be specified.
+// If none of the following policies is specified, the default one
+// is private.
+// +kubebuilder:validation:Enum=private;public;upload;download
+type BucketPolicy string
+
+const (
+	// PolicyPrivate prevents anonymous users to perform any action on the bucket.
+	// The generated policy will be an empty one.
+	PolicyPrivate BucketPolicy = "private"
+
+	// PolicyPublic allows anyone to upload or download from the bucket.
+	PolicyPublic BucketPolicy = "public"
+
+	// PolicyUpload allows users to upload objects to a bucket without authentication.
+	PolicyUpload BucketPolicy = "upload"
+
+	// PolicyDownload allows users to download objects to a bucket without authentication.
+	PolicyDownload BucketPolicy = "download"
+)
 
 // BucketStatus defines the observed state of Bucket.
 type BucketStatus struct {
