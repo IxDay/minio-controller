@@ -28,10 +28,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	miniov1alpha1 "github.com/IxDay/api/v1alpha1"
+	"github.com/IxDay/internal/minio"
 )
 
 var _ = Describe("Policy Controller", func() {
 	Context("When reconciling a resource", func() {
+		var err error
 		const resourceName = "test-resource"
 
 		ctx := context.Background()
@@ -41,17 +43,40 @@ var _ = Describe("Policy Controller", func() {
 			Namespace: "default", // TODO(user):Modify as needed
 		}
 		policy := &miniov1alpha1.Policy{}
+		bucket := &miniov1alpha1.Bucket{}
 
 		BeforeEach(func() {
+			By("creating the custom resource for the Kind Bucket")
+			err = k8sClient.Get(ctx, typeNamespacedName, bucket)
+			if err != nil && errors.IsNotFound(err) {
+				resource := &miniov1alpha1.Bucket{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      resourceName,
+						Namespace: "default",
+					},
+					Spec: miniov1alpha1.BucketSpec{
+						Policy: "private",
+					},
+				}
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			}
 			By("creating the custom resource for the Kind Policy")
-			err := k8sClient.Get(ctx, typeNamespacedName, policy)
+			err = k8sClient.Get(ctx, typeNamespacedName, policy)
 			if err != nil && errors.IsNotFound(err) {
 				resource := &miniov1alpha1.Policy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: miniov1alpha1.PolicySpec{
+						BucketName: resourceName,
+						Statements: []miniov1alpha1.Statement{{
+							Effect: "Allow",
+							Actions: []string{
+								"s3:ListBucket", "s3:GetBucketLocation",
+							},
+						}},
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
@@ -69,8 +94,9 @@ var _ = Describe("Policy Controller", func() {
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &PolicyReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+				Client:      k8sClient,
+				Scheme:      k8sClient.Scheme(),
+				MinioClient: minio.NewStub(),
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{

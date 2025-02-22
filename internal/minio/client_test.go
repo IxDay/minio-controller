@@ -1,8 +1,9 @@
 package minio
 
 import (
-	"encoding/json"
 	"testing"
+
+	"github.com/go-json-experiment/json"
 
 	"github.com/IxDay/api/v1alpha1"
 	"github.com/minio/pkg/v3/policy"
