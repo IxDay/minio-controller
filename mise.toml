@@ -25,6 +25,7 @@ go = "1.23"
 "aqua:helm/helm" = "3.16"
 "aqua:minio/mc" = "RELEASE.2025-02-08T19-14-21Z"
 "go:github.com/go-delve/delve/cmd/dlv" = "1.24"
+"go:golang.org/x/tools/cmd/godoc" = "0.29"
 
 [tasks.build]
 run = "go build -o bin/manager cmd/main.go"
@@ -70,6 +71,9 @@ run = 'go fmt ./...'
 
 [tasks.vet]
 run = 'go vet ./...'
+
+[tasks.doc]
+run = 'godoc -play -index -v -http={{arg(name="address",default="localhost:6060")}}'
 
 [tasks.test]
 depends = ["manifests", "generate", "fmt", "vet", "envtest:setup"]
