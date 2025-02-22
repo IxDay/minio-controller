@@ -94,6 +94,71 @@ func PolicyPublic(bucketName string) *policy.BucketPolicy {
 	}
 }
 
+// mc anonymous set download local/<name_of_bucket>
+// mc anonymous get-json local/<name_of_bucket>
+func PolicyDownload(bucketName string) *policy.BucketPolicy {
+	return &policy.BucketPolicy{
+		Version: policy.DefaultVersion,
+		Statements: []policy.BPStatement{
+			{
+				Effect: policy.Allow,
+				Actions: policy.ActionSet{
+					policy.GetBucketLocationAction: {},
+					policy.ListBucketAction:        {},
+				},
+				Resources: policy.ResourceSet{
+					policy.NewResource(bucketName): {},
+				},
+				Principal: policy.NewPrincipal("*"),
+			},
+			{
+				Effect: policy.Allow,
+				Actions: policy.ActionSet{
+					policy.GetObjectAction: {},
+				},
+				Resources: policy.ResourceSet{
+					policy.NewResource(bucketName + "/*"): {},
+				},
+				Principal: policy.NewPrincipal("*"),
+			},
+		},
+	}
+}
+
+// mc anonymous set upload local/<name_of_bucket>
+// mc anonymous get-json local/<name_of_bucket>
+func PolicyUpload(bucketName string) *policy.BucketPolicy {
+	return &policy.BucketPolicy{
+		Version: policy.DefaultVersion,
+		Statements: []policy.BPStatement{
+			{
+				Effect: policy.Allow,
+				Actions: policy.ActionSet{
+					policy.GetBucketLocationAction:          {},
+					policy.ListBucketMultipartUploadsAction: {},
+				},
+				Resources: policy.ResourceSet{
+					policy.NewResource(bucketName): {},
+				},
+				Principal: policy.NewPrincipal("*"),
+			},
+			{
+				Effect: policy.Allow,
+				Actions: policy.ActionSet{
+					policy.ListMultipartUploadPartsAction: {},
+					policy.PutObjectAction:                {},
+					policy.AbortMultipartUploadAction:     {},
+					policy.DeleteObjectAction:             {},
+				},
+				Resources: policy.ResourceSet{
+					policy.NewResource(bucketName + "/*"): {},
+				},
+				Principal: policy.NewPrincipal("*"),
+			},
+		},
+	}
+}
+
 func NewPolicy(bucketName string, statements []v1alpha1.Statement) (*policy.Policy, error) {
 	p := policy.Policy{Version: policy.DefaultVersion, Statements: make([]policy.Statement, len(statements))}
 	for i, statement := range statements {

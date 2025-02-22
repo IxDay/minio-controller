@@ -171,6 +171,10 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// and move forward for the next operations
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
+	if err := r.MinioClient.BucketPolicyReconcile(ctx, bucket.BucketName(), bucket.Spec.Policy); err != nil {
+		log.Error(err, "Failed to reconcile Bucket Policy")
+		return ctrl.Result{}, err
+	}
 
 	secret, err := r.getSecret(ctx, bucket)
 	if apierrors.IsNotFound(err) {
