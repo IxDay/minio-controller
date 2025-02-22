@@ -1,12 +1,14 @@
 package minio
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
 	"github.com/IxDay/api/v1alpha1"
 	"github.com/minio/pkg/v3/policy"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var bucketName = "test"
@@ -17,7 +19,7 @@ var policyPrivate = []byte("")
 
 var decidePolicyEntries = []struct {
 	current       []byte
-	policy        BucketPolicy
+	wanted        BucketPolicy
 	expectedBytes []byte
 	expectedErr   error
 }{
@@ -37,13 +39,17 @@ func mustMarshal(policy *policy.BucketPolicy) []byte {
 
 func Test_decidePolicy(t *testing.T) {
 	for _, entry := range decidePolicyEntries {
-		gotBytes, gotErr := decidePolicy(bucketName, string(entry.current), entry.policy)
+		gotBytes, gotErr := decidePolicy(bucketName, string(entry.current), entry.wanted)
+		assert.ErrorIs(t, entry.expectedErr, gotErr)
+		if bytes.Equal(gotBytes, entry.expectedBytes) {
+			continue
+		}
+		require.NotNil(t, gotBytes)
+		got, expected := &bucketPolicy{}, &policy.BucketPolicy{}
+		require.NoError(t, got.UnmarshalJSON(gotBytes))
+		require.NoError(t, expected.UnmarshalJSON(entry.expectedBytes))
 
-		assert.ErrorIsf(t, entry.expectedErr, gotErr,
-			"errors do not match - expected: %q, got: %q", entry.expectedErr, gotErr)
-
-		assert.Equal(t, entry.expectedBytes, gotBytes,
-			"bytes output do not match - expected: %q, got: %q", entry.expectedBytes, gotBytes)
+		assert.True(t, got.Equals(*expected), "policy not equal")
 
 	}
 }

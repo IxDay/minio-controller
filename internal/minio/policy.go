@@ -41,19 +41,19 @@ func (p *Policy) SetPolicy(statements []v1alpha1.Statement) (err error) {
 func NewDefaultPolicy(bucketName string) *Policy {
 	return &Policy{
 		Name: bucketName, Bucket: bucketName,
-		Policy: &policy.Policy{
-			Version:    policy.DefaultVersion,
-			Statements: transformStatements(PolicyPublic(bucketName).Statements),
-		},
+		Policy: transformPolicy(PolicyPublic(bucketName)),
 	}
 }
 
-func transformStatements(in []policy.BPStatement) (out []policy.Statement) {
-	out = make([]policy.Statement, len(in))
-	for i := range in {
-		out[i].Effect = in[i].Effect
-		out[i].Actions = in[i].Actions
-		out[i].Resources = in[i].Resources
+func transformPolicy(in *policy.BucketPolicy) (out *policy.Policy) {
+	out = &policy.Policy{
+		Version:    in.Version,
+		Statements: make([]policy.Statement, len(in.Statements)),
+	}
+	for i := range in.Statements {
+		out.Statements[i].Effect = in.Statements[i].Effect
+		out.Statements[i].Actions = in.Statements[i].Actions
+		out.Statements[i].Resources = in.Statements[i].Resources
 	}
 	return
 }

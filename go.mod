@@ -1,10 +1,13 @@
 module github.com/IxDay
 
-go 1.23.0
+go 1.24
+
+toolchain go1.24.0
 
 godebug default=go1.23
 
 require (
+	github.com/go-json-experiment/json v0.0.0-20250213060926-925ba3f173fa
 	github.com/minio/madmin-go/v3 v3.0.91
 	github.com/minio/minio-go/v7 v7.0.85
 	github.com/minio/pkg/v3 v3.0.29

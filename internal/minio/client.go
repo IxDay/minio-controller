@@ -177,38 +177,38 @@ func (c *client) BucketPolicyReconcile(ctx context.Context, name string, policy 
 
 type bucketPolicy = policy.BucketPolicy
 
-func decidePolicy(bucket, currentJSON string, policy BucketPolicy) ([]byte, error) {
+func decidePolicy(bucket, currentJSON string, wantedPolicy BucketPolicy) ([]byte, error) {
 
-	if policy == v1alpha1.PolicyPrivate && currentJSON == "" {
+	if wantedPolicy == v1alpha1.PolicyPrivate && currentJSON == "" {
 		return nil, nil
 	}
-	if policy == v1alpha1.PolicyPrivate && currentJSON != "" {
+	if wantedPolicy == v1alpha1.PolicyPrivate && currentJSON != "" {
 		return []byte{}, nil
 	}
 
-	current, expected := &bucketPolicy{}, bucketPolicy{}
-	switch policy {
+	current, wanted := &bucketPolicy{}, bucketPolicy{}
+	switch wantedPolicy {
 	case v1alpha1.PolicyPublic:
-		expected = *PolicyPublic(bucket)
+		wanted = *PolicyPublic(bucket)
 	case v1alpha1.PolicyDownload:
-		expected = *PolicyDownload(bucket)
+		wanted = *PolicyDownload(bucket)
 	case v1alpha1.PolicyUpload:
-		expected = *PolicyUpload(bucket)
+		wanted = *PolicyUpload(bucket)
 	}
-	expectedJSON, err := json.Marshal(expected)
+	wantedJSON, err := json.Marshal(wanted)
 	if err != nil {
 		return nil, err
 	}
 	if currentJSON == "" {
-		return expectedJSON, nil
+		return wantedJSON, nil
 	}
 	if err := current.UnmarshalJSON([]byte(currentJSON)); err != nil {
 		return nil, err
 	}
-	if current.Equals(expected) {
+	if current.Equals(wanted) {
 		return nil, nil
 	}
-	return expectedJSON, nil
+	return wantedJSON, nil
 }
 
 type stub struct{}

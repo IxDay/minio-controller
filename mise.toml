@@ -78,7 +78,10 @@ run = 'godoc -play -index -v -http={{arg(name="address",default="localhost:6060"
 [tasks.test]
 depends = ["manifests", "generate", "fmt", "vet", "envtest:setup"]
 env.K8S_VERSION = '{{vars.k8s_version}}'
-file = "./scripts/test.sh"
+run = [
+  'KUBEBUILDER_ASSETS="$(setup-envtest use "$K8S_VERSION" --bin-dir bin -p path)"',
+  'go test $(go list ./... | grep -v /e2e) -coverprofile cover.out',
+]
 
 [tasks.lint]
 run = 'golangci-lint run'

@@ -12,12 +12,30 @@ jobs:
       - name: Clone the code
         uses: actions/checkout@v4
 
+      - name: Cache mise install
+        id: cache-mise
+        uses: actions/cache@v4
+        env:
+          cache-name: cache-mise
+        with:
+          path: ~/.local/share/mise
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/mise.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: Running Tests
+      - name: Install mise tools
         run: |
-          go mod tidy
-          make test
+          curl https://mise.run | MISE_INSTALL_PATH=/usr/local/bin/mise sh
+          mise settings experimental=true
+          mise trust
+          mise install
+
+      - name: Running Tests
+        run: mise test
