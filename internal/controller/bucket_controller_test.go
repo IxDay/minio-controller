@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	bucketv1alpha1 "github.com/IxDay/api/v1alpha1"
+	miniov1alpha1 "github.com/IxDay/api/v1alpha1"
 	"github.com/IxDay/internal/minio"
 )
 
@@ -41,18 +41,20 @@ var _ = Describe("Bucket Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		bucket := &bucketv1alpha1.Bucket{}
+		bucket := &miniov1alpha1.Bucket{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind Bucket")
 			err := k8sClient.Get(ctx, typeNamespacedName, bucket)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &bucketv1alpha1.Bucket{
+				resource := &miniov1alpha1.Bucket{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: miniov1alpha1.BucketSpec{
+						Policy: "private",
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
@@ -60,7 +62,7 @@ var _ = Describe("Bucket Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &bucketv1alpha1.Bucket{}
+			resource := &miniov1alpha1.Bucket{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
