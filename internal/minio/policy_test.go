@@ -37,11 +37,11 @@ var defaultPolicy = `{
   ]
 }`
 
-func TestDefaultPolicy(t *testing.T) {
+func TestPublicPolicy(t *testing.T) {
 	expected := &policy.Policy{}
 	if err := expected.UnmarshalJSON([]byte(defaultPolicy)); err != nil {
 		t.Errorf("failed to unmarshal policy")
 	}
-	actual := DefaultPolicy("foo")
+	actual := PolicyPublic("foo")
 	assert.Equal(t, expected, actual)
 }

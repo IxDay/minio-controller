@@ -34,21 +34,36 @@ func (p *Policy) SetUser(user, password []byte) error {
 }
 
 func (p *Policy) SetPolicy(statements []v1alpha1.Statement) (err error) {
-	p.Policy, err = BucketPolicy(p.Bucket, statements)
+	p.Policy, err = NewPolicy(p.Bucket, statements)
 	return
 }
 
 func NewDefaultPolicy(bucketName string) *Policy {
 	return &Policy{
 		Name: bucketName, Bucket: bucketName,
-		Policy: DefaultPolicy(bucketName),
+		Policy: &policy.Policy{
+			Version:    policy.DefaultVersion,
+			Statements: transformStatements(PolicyPublic(bucketName).Statements),
+		},
 	}
 }
 
-func DefaultPolicy(bucketName string) *policy.Policy {
-	return &policy.Policy{
+func transformStatements(in []policy.BPStatement) (out []policy.Statement) {
+	out = make([]policy.Statement, len(in))
+	for i := range in {
+		out[i].Effect = in[i].Effect
+		out[i].Actions = in[i].Actions
+		out[i].Resources = in[i].Resources
+	}
+	return
+}
+
+// mc anonymous set public local/<name_of_bucket>
+// mc anonymous get-json local/<name_of_bucket>
+func PolicyPublic(bucketName string) *policy.BucketPolicy {
+	return &policy.BucketPolicy{
 		Version: policy.DefaultVersion,
-		Statements: []policy.Statement{
+		Statements: []policy.BPStatement{
 			{
 				Effect: policy.Allow,
 				Actions: policy.ActionSet{
@@ -59,6 +74,7 @@ func DefaultPolicy(bucketName string) *policy.Policy {
 				Resources: policy.ResourceSet{
 					policy.NewResource(bucketName): {},
 				},
+				Principal: policy.NewPrincipal("*"),
 			},
 			{
 				Effect: policy.Allow,
@@ -72,12 +88,13 @@ func DefaultPolicy(bucketName string) *policy.Policy {
 				Resources: policy.ResourceSet{
 					policy.NewResource(bucketName + "/*"): {},
 				},
+				Principal: policy.NewPrincipal("*"),
 			},
 		},
 	}
 }
 
-func BucketPolicy(bucketName string, statements []v1alpha1.Statement) (*policy.Policy, error) {
+func NewPolicy(bucketName string, statements []v1alpha1.Statement) (*policy.Policy, error) {
 	p := policy.Policy{Version: policy.DefaultVersion, Statements: make([]policy.Statement, len(statements))}
 	for i, statement := range statements {
 		resources := make(policy.ResourceSet, len(statement.SubPaths))
@@ -107,8 +124,4 @@ func BucketPolicy(bucketName string, statements []v1alpha1.Statement) (*policy.P
 		}
 	}
 	return &p, nil
-}
-
-func ParsePolicy() *policy.Policy {
-	return nil
 }
