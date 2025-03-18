@@ -35,7 +35,7 @@ type BucketSpec struct {
 	// - "public": allows any action of upload or download on the bucket for the anonymous user;
 	// - "upload": allows all the upload actions to the anonymous user on the bucket;
 	// - "download": allows all the download actions to the anonymous user on the bucket;
-	// +optional
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=private
 	Policy BucketPolicy `json:"policy"`
 }

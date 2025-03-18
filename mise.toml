@@ -11,7 +11,7 @@ envtest_version = "release-0.20"
 k8s_version = "1.32"
 
 [tools]
-go = "1.23"
+go = "1.24"
 
 "aqua:jqlang/jq" = "1.7"
 "aqua:kubernetes-sigs/kubebuilder" = "4.5"
