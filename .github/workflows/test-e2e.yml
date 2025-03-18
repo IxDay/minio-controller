@@ -1,0 +1,45 @@
+name: E2E Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-e2e:
+    name: Run on Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone the code
+        uses: actions/checkout@v4
+
+      - name: Cache mise install
+        id: cache-mise
+        uses: actions/cache@v4
+        env:
+          cache-name: cache-mise
+        with:
+          path: ~/.local/share/mise
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/mise.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install mise tools
+        run: |
+          curl https://mise.run | MISE_INSTALL_PATH=/usr/local/bin/mise sh
+          mise settings experimental=true
+          mise trust
+          mise install
+
+      - name: Create kind cluster
+        run: mise kind:init
+
+      - name: Running Tests
+        run: mise test:e2e
+

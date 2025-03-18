@@ -83,6 +83,14 @@ run = [
   'go test $(go list ./... | grep -v /e2e) -coverprofile cover.out',
 ]
 
+[tasks."test:e2e"]
+depends = ["manifests", "generate", "fmt", "vet"]
+env.K8S_VERSION = '{{vars.k8s_version}}'
+env.KIND_CLUSTER = '{{env.KIND_CLUSTER_NAME}}'
+run = [
+  'go test ./test/e2e/ -v -ginkgo.v',
+]
+
 [tasks.lint]
 run = 'golangci-lint run'
 
@@ -105,8 +113,11 @@ run = [
     'setup-envtest use {{vars.k8s_version}} --bin-dir bin -p path',
 ]
 
-[tasks."kind:create"]
+[tasks."kind:init"]
 run = "kind --config=kind.yaml create cluster"
+
+[tasks."kind:create"]
+depends = ["kind:init"]
 depends_post = ["install", "minio:deploy"]
 
 [tasks."kind:delete"]
@@ -115,15 +126,16 @@ run = "kind delete cluster"
 [tasks."kind:load"]
 run = 'kind load docker-image {{arg(name="img",default=vars.image)}}'
 
-[tasks."installer:build"]
+[tasks."build:installer"]
 depends = ["manifests", "generate"]
 run = [
   'mkdir -p dist',
   'cd config/manager && kustomize edit set image controller="{{arg(name="img",default=vars.image)}}"',
-  'kustomize build config/default > dist/install.yaml',
+  'kustomize build config/default -o dist/install.yaml',
 ]
 
 [tasks."docker:build"]
+alias = "build:image"
 run = '{{vars.container_tool}} build -t {{arg(name="img",default=vars.image)}} .'
 
 [tasks."docker:push"]

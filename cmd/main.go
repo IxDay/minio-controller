@@ -221,7 +221,7 @@ func main() {
 	namespace := os.Getenv("POD_NAMESPACE")
 	if namespace == "" {
 		b, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-		if !errors.Is(err, fs.ErrNotExist) {
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			setupLog.Error(err, "failed to read namespace file")
 			os.Exit(1)
 		}

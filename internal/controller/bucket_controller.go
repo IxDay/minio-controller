@@ -63,7 +63,7 @@ type Bucket = miniov1alpha1.Bucket
 // +kubebuilder:rbac:groups=minio.ixday.github.io,resources=buckets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=minio.ixday.github.io,resources=buckets/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=minio.ixday.github.io,resources=buckets/finalizers,verbs=update
-// +kubebuilder:rbac:resources=secrets,verbs=get;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
