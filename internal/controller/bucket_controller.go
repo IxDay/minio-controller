@@ -171,9 +171,25 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// and move forward for the next operations
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
-	if err := r.MinioClient.BucketPolicyReconcile(ctx, bucket.BucketName(), bucket.Spec.Policy); err != nil {
+	if changed, err := r.MinioClient.BucketPolicyReconcile(ctx, bucket.BucketName(), bucket.Spec.Policy); err != nil {
 		log.Error(err, "Failed to reconcile Bucket Policy")
 		return ctrl.Result{}, err
+	} else if changed {
+		log.Info("Reconciled bucket policy")
+	}
+
+	// if no secret provided we stop reconciliation, we do not want default policy
+	if bucket.Spec.SecretName == "" {
+		meta.SetStatusCondition(&bucket.Status.Conditions, metav1.Condition{Type: typeAvailableBucket,
+			Status: metav1.ConditionTrue, Reason: "Reconciling",
+			Message: fmt.Sprintf("Bucket %s created successfully", bucket.Name)})
+
+		if err := r.Status().Update(ctx, bucket); err != nil {
+			log.Error(err, "Failed to update Bucket status")
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, nil
 	}
 
 	secret, err := r.getSecret(ctx, bucket)
@@ -207,7 +223,7 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		log.Error(err, "Failed to get Secret")
 		// Let's return the error for the reconciliation be re-trigged again
 		return ctrl.Result{}, err
-	} else if bucket.Spec.SecretName != "" && (secret.Annotations == nil || secret.Annotations[annotationBucket] == "") {
+	} else if secret.Annotations == nil || secret.Annotations[annotationBucket] == "" {
 		if secret.Annotations == nil {
 			secret.Annotations = map[string]string{annotationBucket: bucket.Name}
 		} else {
@@ -305,18 +321,15 @@ func (r *BucketReconciler) secretForBucket(bucket *Bucket) (*corev1.Secret, erro
 	}
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      bucket.Name,
-			Namespace: bucket.Namespace,
+			Name:        bucket.Spec.SecretName,
+			Namespace:   bucket.Namespace,
+			Annotations: map[string]string{annotationBucket: bucket.Name},
 		},
 		Data: map[string][]byte{
 			"user":     user,
 			"password": password,
 		},
 	}
-	if bucket.Spec.SecretName != "" {
-		secret.Name = bucket.Spec.SecretName
-	}
-
 	// Set the ownerRef for the Deployment
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/
 	if err := ctrl.SetControllerReference(bucket, secret, r.Scheme); err != nil {

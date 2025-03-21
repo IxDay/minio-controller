@@ -23,7 +23,7 @@ type Client interface {
 	BucketCreate(ctx context.Context, name string) error
 	BucketDelete(ctx context.Context, name string) error
 	BucketExists(ctx context.Context, name string) (bool, error)
-	BucketPolicyReconcile(ctx context.Context, name string, policy BucketPolicy) error
+	BucketPolicyReconcile(ctx context.Context, name string, policy BucketPolicy) (bool, error)
 	PolicyReconcile(ctx context.Context, policy *Policy) error
 	PolicyDelete(ctx context.Context, name string) error
 }
@@ -160,19 +160,19 @@ func (c *client) PolicyDelete(ctx context.Context, policy string) error {
 	return errors.Join(append(errs, c.RemoveCannedPolicy(ctx, policy))...)
 }
 
-func (c *client) BucketPolicyReconcile(ctx context.Context, name string, policy BucketPolicy) error {
+func (c *client) BucketPolicyReconcile(ctx context.Context, name string, policy BucketPolicy) (bool, error) {
 	current, err := c.GetBucketPolicy(ctx, name)
 	if err != nil {
-		return err
+		return false, err
 	}
 	expected, err := decidePolicy(name, current, policy)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if expected == nil {
-		return nil
+		return false, nil
 	}
-	return c.SetBucketPolicy(ctx, name, string(expected))
+	return true, c.SetBucketPolicy(ctx, name, string(expected))
 }
 
 type bucketPolicy = policy.BucketPolicy
@@ -213,11 +213,13 @@ func decidePolicy(bucket, currentJSON string, wantedPolicy BucketPolicy) ([]byte
 
 type stub struct{}
 
-func (s stub) BucketCreate(context.Context, string) error                        { return nil }
-func (s stub) BucketExists(context.Context, string) (bool, error)                { return true, nil }
-func (s stub) BucketDelete(context.Context, string) error                        { return nil }
-func (s stub) PolicyReconcile(context.Context, *Policy) error                    { return nil }
-func (s stub) PolicyDelete(context.Context, string) error                        { return nil }
-func (s stub) BucketPolicyReconcile(context.Context, string, BucketPolicy) error { return nil }
+func (s stub) BucketCreate(context.Context, string) error         { return nil }
+func (s stub) BucketExists(context.Context, string) (bool, error) { return true, nil }
+func (s stub) BucketDelete(context.Context, string) error         { return nil }
+func (s stub) PolicyReconcile(context.Context, *Policy) error     { return nil }
+func (s stub) PolicyDelete(context.Context, string) error         { return nil }
+func (s stub) BucketPolicyReconcile(context.Context, string, BucketPolicy) (bool, error) {
+	return false, nil
+}
 
 func NewStub() Client { return stub{} }
